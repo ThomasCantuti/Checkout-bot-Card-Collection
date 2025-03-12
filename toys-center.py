@@ -74,19 +74,19 @@ def monitor_and_add_to_cart(driver):
     
     while not product_found:
 
+        # verifica la presenza del prodotto e del bottone 'Aggiungi al carrello'
         try:
-            # Attende la presenza del bottone per un tot di secondi
             add_to_cart_button = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
             )
-            # Se trova il bottone, clicca
+
             add_to_cart_button.click()
             product_found = True
             
             proceed_to_cart = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
             )
-            # Se trova il bottone, clicca
+
             proceed_to_cart.click()
         except:
             print("Prodotto non disponibile, ritento fra pochi secondi...")
