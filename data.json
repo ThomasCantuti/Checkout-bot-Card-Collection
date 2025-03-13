@@ -1,0 +1,18 @@
+{
+    "nome": "Mario",
+    "cognome": "Rossi",
+    "data_nascita": "01/01/2000",
+    "sesso": "M",
+    "password": ")xRu1ojDZw>E",
+    "indirizzo": "Via Esempio",
+    "civico": "123",
+    "citta": "Roma",
+    "provincia": "RM",
+    "cap": "00100",
+    "telefono": "1234567890",
+    "email": "random@41032domainname.it",
+    "metodo_pagamento": "carta_di_credito",
+    "numero_carta": "4111 1111 1111 1111",
+    "scadenza_carta": "12/25",
+    "cvv": "123"
+}

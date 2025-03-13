@@ -9,7 +9,7 @@ import json
 # Configurazione
 # ==========================
 
-PRODUCT_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mew-643/"  # URL prodotto
+PRODUCT_URL = "https://www.gamelife.it/ccpk0147-carte-pokemon-8-5-evoluzioni-prismatiche-bundle-6-buste-ita.html"  # URL prodotto
 REFRESH_INTERVAL = 10  # secondi tra un controllo e l'altro
 USER_DATA = json.load(open("data.json"))
 
@@ -54,9 +54,11 @@ def monitor_and_add_to_cart(driver):
     """
     product_found = False
     driver.get(PRODUCT_URL)
+    time.sleep(3)
+    submit_button = driver.find_element(By.XPATH, "//button[@type='submit']")
+    driver.execute_script("arguments[0].click();", submit_button)
     
     while not product_found:
-
         # verifica la presenza del prodotto e del bottone 'Aggiungi al carrello'
         try:
             add_to_cart_button = WebDriverWait(driver, 10).until(
