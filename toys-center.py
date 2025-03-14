@@ -10,6 +10,7 @@ import json
 # ==========================
 
 PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
+# PRODUCT_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mewtwo/"
 REFRESH_INTERVAL = 2  # secondi tra un controllo e l'altro
 USER_DATA = json.load(open("alle.json"))
 
@@ -49,34 +50,95 @@ def main():
 def monitor_and_add_to_cart(driver):
     """
     Visita la pagina del prodotto e aggiorna periodicamente
-    fino a trovare il bottone di 'Aggiungi al carrello'.
+    fino a trovare il bottone di 'COMPRA ONLINE'.
     Non appena lo trova, clicca e interrompe il loop.
     """
     product_found = False
     driver.get(PRODUCT_URL)
     
+    # Gestione cookie iniziale
+    try:
+        cookie_accept_btn = driver.find_element(By.ID, "onetrust-accept-btn-handler")  
+        cookie_accept_btn.click()
+        print("Banner cookie chiuso")
+        time.sleep(1)
+    except:
+        print("Nessun banner cookie trovato")
+    
     while not product_found:
-        # verifica la presenza del prodotto e del bottone 'Aggiungi al carrello'
         try:
-            add_to_cart_button = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
-            )
-            add_to_cart_button.click()
+            # Ricarica la pagina ad ogni ciclo
+            driver.refresh()
+            print("Pagina ricaricata")
+            time.sleep(2)  # Attesa per caricamento completo
             
-            product_found = True
-            
+            # Gestione cookie se riappaiono dopo refresh
             try:
-                submit_button = driver.find_element(By.XPATH, "//button[@type='submit']")
-                driver.execute_script("arguments[0].click();", submit_button)
+                cookie_accept_btn = driver.find_element(By.ID, "onetrust-accept-btn-handler")  
+                cookie_accept_btn.click()
+                print("Banner cookie chiuso dopo refresh")
+                time.sleep(1)
             except:
                 pass
             
-            proceed_to_cart = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
-            )
-            proceed_to_cart.click()
-        except:
-            print("Prodotto non disponibile, ritento fra pochi secondi...")
+            # Gestione banner avviso prodotto
+            try:
+                close_button = driver.find_element(By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[5]/div/div[2]/div/div/button')
+                close_button.click()
+                print("Banner avviso chiuso")
+                time.sleep(1)
+            except:
+                pass
+                
+            # Gestione captcha di CloudFlare
+            try:
+                cf_iframe = None
+                elements = driver.find_elements(By.XPATH, "//*[starts-with(@id, 'cf-chl-widget')]")
+                if elements:
+                    cf_iframe = elements[0]
+                print(f"Trovato elemento CloudFlare captcha con ID: {cf_iframe.get_attribute('id')}")
+                
+                # Se abbiamo trovato un elemento di CloudFlare, ci clicchiamo sopra
+                if cf_iframe:
+                    try:
+                        driver.execute_script("arguments[0].click();", cf_iframe)
+                        print("CloudFlare CAPTCHA cliccato via JavaScript")
+                    except Exception as e:
+                        print(f"Errore nel click sul CAPTCHA: {str(e)[:100]}")
+            except Exception as e:
+                print(f"Errore nella gestione CAPTCHA: {str(e)[:100]}")
+                pass
+            
+            # Verifica se il pulsante "AVVISAMI" è presente (prodotto NON disponibile)
+            '''try:
+                notify_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Avvisami')]")
+                if notify_button.is_displayed():
+                    print("Prodotto NON disponibile (pulsante 'Avvisami' trovato), ricontrollo tra poco...")
+                    time.sleep(REFRESH_INTERVAL)
+                    continue
+            except:
+                pass'''
+                
+            # Verifica se il pulsante "COMPRA ONLINE" è presente (prodotto disponibile)
+            try:
+                add_to_cart_button = WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
+                )
+                add_to_cart_button.click()
+                
+                product_found = True
+                
+                proceed_to_cart = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
+                )
+                proceed_to_cart.click()
+                
+            except Exception as e:
+                print(f"Nessun pulsante 'COMPRA ONLINE' trovato: {str(e)[:100]}...")
+                time.sleep(REFRESH_INTERVAL)
+                
+        except Exception as e:
+            print(f"Errore generico: {str(e)[:100]}...")
             time.sleep(REFRESH_INTERVAL)
 
 # ==========================
@@ -87,50 +149,10 @@ def proceed_to_checkout(driver):
     Dopo aver aggiunto il prodotto al carrello,
     si naviga alla pagina di checkout e si compilano i form.
     """
-    # Accettazione cookie
-    try:
-        cookie_accept_btn = driver.find_element(By.ID, "onetrust-accept-btn-handler")  
-        cookie_accept_btn.click()
-        # attendo un istante che il banner scompaia
-        time.sleep(1)
-    except:
-        # se non lo trova, magari è già chiuso, ignora
-        pass
-
     proceed_to_checkout_button = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[3]/div[3]/a'))
     )
     proceed_to_checkout_button.click()
-    
-    '''
-    # try to login
-    login_button = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, '//*[@id="content"]/div[2]/div[2]/div/div[1]/div/div/div[2]/div[2]/button'))
-    )
-    login_button.click()
-    
-    user_login_field = driver.find_element(By.XPATH, '//*[@id="user_login"]')
-    user_login_field.send_keys(USER_DATA["email"])
-    
-    continue_button = WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div[2]/div/div[2]/div/div/div[2]/div/div/div[1]/div[3]/button'))
-    )
-    continue_button.click()
-    
-    time.sleep(3)
-    
-    # /html/body/div[2]/div[2]/div/div[2]/div/div/div[2]/div/div/div[1]/div[1]/div[2]
-    if driver.find_element(By.XPATH, '/html/body/div[2]/div[2]/div/div[2]/div/div/div[2]/div/div/div[1]/div[1]/p[2]').is_displayed():
-        print("Utente non esistente")
-        # close and register
-        close_button = driver.find_element(By.XPATH, '/html/body/div[2]/div[2]/div/div[2]/div/div/div[2]/div/div/div[1]/div[4]')
-        close_button.click()
-    else:
-        print("Utente esistente")
-        user_password_field = driver.find_element(By.XPATH, '//*[@id="user_login"]')
-        user_password_field.send_keys(USER_DATA["password"])
-        # continua con la redirezione alla pagina di checkout
-    '''
     
     # Compilazione form
     time.sleep(1)
@@ -299,7 +321,7 @@ def payment_and_confirmation(driver):
         print(f"Errore nella gestione del CVV: {e}")
         driver.switch_to.default_content()
 
-    # input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
+    input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
     
     # Clicca sul bottone di pagamento
     try:
