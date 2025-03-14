@@ -299,7 +299,7 @@ def payment_and_confirmation(driver):
         print(f"Errore nella gestione del CVV: {e}")
         driver.switch_to.default_content()
 
-    input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
+    # input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
     
     # Clicca sul bottone di pagamento
     try:
