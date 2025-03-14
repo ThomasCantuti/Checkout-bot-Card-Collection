@@ -9,9 +9,9 @@ import json
 # Configurazione
 # ==========================
 
-PRODUCT_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mew-643/"  # URL prodotto
-REFRESH_INTERVAL = 10  # secondi tra un controllo e l'altro
-USER_DATA = json.load(open("data.json"))
+PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
+REFRESH_INTERVAL = 2  # secondi tra un controllo e l'altro
+USER_DATA = json.load(open("alle.json"))
 
 # ==========================
 # Funzione principale
@@ -56,20 +56,24 @@ def monitor_and_add_to_cart(driver):
     driver.get(PRODUCT_URL)
     
     while not product_found:
-
         # verifica la presenza del prodotto e del bottone 'Aggiungi al carrello'
         try:
             add_to_cart_button = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
             )
-
             add_to_cart_button.click()
+            
             product_found = True
+            
+            try:
+                submit_button = driver.find_element(By.XPATH, "//button[@type='submit']")
+                driver.execute_script("arguments[0].click();", submit_button)
+            except:
+                pass
             
             proceed_to_cart = WebDriverWait(driver, 10).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
             )
-
             proceed_to_cart.click()
         except:
             print("Prodotto non disponibile, ritento fra pochi secondi...")
@@ -83,15 +87,22 @@ def proceed_to_checkout(driver):
     Dopo aver aggiunto il prodotto al carrello,
     si naviga alla pagina di checkout e si compilano i form.
     """
-    # A volte, dopo l'aggiunta al carrello, il sito ridirige direttamente
-    # Oppure potresti dover cliccare manualmente su un link 'Vai al carrello'
-    # Qui facciamo finta che basti andare su CHECKOUT_URL
+    # Accettazione cookie
+    try:
+        cookie_accept_btn = driver.find_element(By.ID, "onetrust-accept-btn-handler")  
+        cookie_accept_btn.click()
+        # attendo un istante che il banner scompaia
+        time.sleep(1)
+    except:
+        # se non lo trova, magari è già chiuso, ignora
+        pass
 
     proceed_to_checkout_button = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[3]/div[3]/a'))
     )
     proceed_to_checkout_button.click()
     
+    '''
     # try to login
     login_button = WebDriverWait(driver, 10).until(
         EC.element_to_be_clickable((By.XPATH, '//*[@id="content"]/div[2]/div[2]/div/div[1]/div/div/div[2]/div[2]/button'))
@@ -119,8 +130,10 @@ def proceed_to_checkout(driver):
         user_password_field = driver.find_element(By.XPATH, '//*[@id="user_login"]')
         user_password_field.send_keys(USER_DATA["password"])
         # continua con la redirezione alla pagina di checkout
-
+    '''
+    
     # Compilazione form
+    time.sleep(1)
     driver.find_element(By.XPATH, '//*[@id="billing.first_name"]').send_keys(USER_DATA["nome"])
     driver.find_element(By.XPATH, '//*[@id="billing.last_name"]').send_keys(USER_DATA["cognome"])
     driver.find_element(By.XPATH, '//*[@id="billing.address_1"]').send_keys(USER_DATA["indirizzo"])
@@ -144,31 +157,183 @@ def proceed_to_checkout(driver):
 # ==========================
 def payment_and_confirmation(driver):
     """
-    Seleziona il metodo di pagamento e inserisce i dati della carta
-    (o PayPal, a seconda del sito). Quindi conferma.
+    Seleziona il metodo di pagamento e inserisce i dati della carta.
+    Gestisce gli iframe sicuri di Adyen.
     """
+    time.sleep(1)
+    
+    # Seleziona il metodo di pagamento carta di credito
+    cc_radio = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.ID, "payment_method_adyen"))
+    )
+    cc_radio.click()
+    print("Metodo di pagamento selezionato")
+    
+    # Attendi che il form di pagamento sia visibile
     WebDriverWait(driver, 10).until(
-        EC.presence_of_element_located((By.NAME, "cardnumber"))
+        EC.visibility_of_element_located((By.ID, "wc_adyen_payment_mount_node"))
     )
-
-    # Inserisci i dati della carta (esempio generico)
-    driver.find_element(By.NAME, "cardnumber").send_keys(USER_DATA["numero_carta"])
-    driver.find_element(By.NAME, "cardexpiration").send_keys(USER_DATA["scadenza_carta"])
-    driver.find_element(By.NAME, "cardcvv").send_keys(USER_DATA["cvv"])
-
-    # Clicca sul bottone di pagamento
-    pay_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Paga ora')]")
-    pay_button.click()
-
-    # Attendere una pagina di conferma (o un messaggio)
-    # (Esempio: cerca un elemento che dica "Grazie per il tuo ordine")
-    WebDriverWait(driver, 20).until(
-        EC.text_to_be_present_in_element(
-            (By.TAG_NAME, "body"),  # o un locatore più mirato
-            "Grazie per il tuo ordine"
+    print("Form di pagamento visibile")
+    time.sleep(3)  # Attendi il completo caricamento
+    
+    # Prima gestisci il nome del titolare (campo non in iframe)
+    try:
+        # Questo è l'unico campo che non è all'interno di un iframe
+        holder_name = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='holderName']"))
         )
-    )
-    print("Pagamento completato, ordine confermato.")
+        holder_name.clear()
+        holder_name.send_keys(USER_DATA["titolare_carta"])
+        print("Nome del titolare inserito")
+    except Exception as e:
+        print(f"Errore nell'inserimento del nome del titolare: {e}")
+    
+    # Ottieni tutti gli iframe
+    time.sleep(2)
+    iframes = driver.find_elements(By.TAG_NAME, "iframe")
+    print(f"Trovati {len(iframes)} iframe")
+    
+    # Stampa gli attributi di ogni iframe per debug
+    for i, iframe in enumerate(iframes):
+        print(f"Iframe {i}: src={iframe.get_attribute('src')}, title={iframe.get_attribute('title')}")
+    
+    # Approccio con attesa esplicita per ogni iframe e utilizzo di JavaScript
+    
+    # Numero di carta
+    try:
+        # Trova l'iframe del numero carta
+        card_iframe = None
+        for iframe in iframes:
+            if "numero di carta" in iframe.get_attribute('title').lower():
+                card_iframe = iframe
+                break
+        
+        if card_iframe:
+            driver.switch_to.frame(card_iframe)
+            print("Passato al frame del numero carta")
+            
+            # Attendi che la pagina sia completamente caricata
+            time.sleep(2)
+            
+            # Prova ad inserire il numero di carta usando JavaScript
+            driver.execute_script("""
+                var inputs = document.querySelectorAll('input');
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].value = arguments[0];
+                    var event = new Event('input', { bubbles: true });
+                    inputs[i].dispatchEvent(event);
+                }
+            """, USER_DATA["numero_carta"])
+            
+            print("Numero carta inserito via JavaScript")
+            driver.switch_to.default_content()
+        else:
+            print("Iframe per numero carta non trovato")
+    except Exception as e:
+        print(f"Errore nella gestione del numero carta: {e}")
+        driver.switch_to.default_content()
+    
+    # Data di scadenza
+    try:
+        # Trova l'iframe della data di scadenza
+        exp_iframe = None
+        for iframe in iframes:
+            if "data di scadenza" in iframe.get_attribute('title').lower():
+                exp_iframe = iframe
+                break
+        
+        if exp_iframe:
+            driver.switch_to.frame(exp_iframe)
+            print("Passato al frame della data di scadenza")
+            
+            time.sleep(2)
+            
+            # Prova ad inserire la data di scadenza usando JavaScript
+            driver.execute_script("""
+                var inputs = document.querySelectorAll('input');
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].value = arguments[0];
+                    var event = new Event('input', { bubbles: true });
+                    inputs[i].dispatchEvent(event);
+                }
+            """, USER_DATA["scadenza_carta"])
+            
+            print("Data di scadenza inserita via JavaScript")
+            driver.switch_to.default_content()
+        else:
+            print("Iframe per data di scadenza non trovato")
+    except Exception as e:
+        print(f"Errore nella gestione della data di scadenza: {e}")
+        driver.switch_to.default_content()
+    
+    # CVV
+    try:
+        # Trova l'iframe del CVV
+        cvv_iframe = None
+        for iframe in iframes:
+            if "codice di sicurezza" in iframe.get_attribute('title').lower():
+                cvv_iframe = iframe
+                break
+        
+        if cvv_iframe:
+            driver.switch_to.frame(cvv_iframe)
+            print("Passato al frame del CVV")
+            
+            time.sleep(2)
+            
+            # Prova ad inserire il CVV usando JavaScript
+            driver.execute_script("""
+                var inputs = document.querySelectorAll('input');
+                for (var i = 0; i < inputs.length; i++) {
+                    inputs[i].value = arguments[0];
+                    var event = new Event('input', { bubbles: true });
+                    inputs[i].dispatchEvent(event);
+                }
+            """, USER_DATA["cvv"])
+            
+            print("CVV inserito via JavaScript")
+            driver.switch_to.default_content()
+        else:
+            print("Iframe per CVV non trovato")
+    except Exception as e:
+        print(f"Errore nella gestione del CVV: {e}")
+        driver.switch_to.default_content()
+
+    input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
+    
+    # Clicca sul bottone di pagamento
+    try:
+        pay_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 
+                "button.button.tw-w-full.tw-justify-center"))
+        )
+        pay_button.click()
+        print("Pulsante di pagamento cliccato")
+    except Exception as e:
+        print(f"Errore nel click sul pulsante di pagamento: {e}")
+        
+        # Tentativo alternativo per trovare il pulsante
+        try:
+            buttons = driver.find_elements(By.TAG_NAME, "button")
+            for button in buttons:
+                if "paga" in button.text.lower() or "procedi" in button.text.lower():
+                    button.click()
+                    print(f"Cliccato pulsante con testo: {button.text}")
+                    break
+        except Exception as e2:
+            print(f"Anche il tentativo alternativo è fallito: {e2}")
+
+    # Attesa per la conferma dell'ordine
+    try:
+        WebDriverWait(driver, 20).until(
+            EC.text_to_be_present_in_element(
+                (By.TAG_NAME, "body"),
+                "Grazie per il tuo ordine"
+            )
+        )
+        print("Pagamento completato, ordine confermato.")
+    except Exception as e:
+        print(f"Attesa conferma ordine non riuscita: {e}")
 
 # ==========================
 # Avvio script
