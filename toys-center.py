@@ -4,26 +4,28 @@ from selenium.webdriver.support import expected_conditions as EC
 import undetected_chromedriver as uc
 import time
 import json
+from utils import cookie_accept, bypass_cloudflare_captcha
+
 
 # ==========================
 # Configurazione
 # ==========================
-
 PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
 # PRODUCT_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mewtwo/"
 REFRESH_INTERVAL = 2  # secondi tra un controllo e l'altro
-USER_DATA = json.load(open("alle.json"))
+USER_PATH = "alle.json"
+USER_DATA = json.load(open(USER_PATH))
+
 
 # ==========================
 # Funzione principale
 # ==========================
-
 def main():
     # Inizializza il webdriver (Chrome in questo caso)
     # Assicurati di aver installato correttamente chromedriver
     options = uc.ChromeOptions()
     driver = uc.Chrome(options=options)
-    driver.implicitly_wait(10)
+    driver.implicitly_wait(2)
 
     try:
         # 1. MONITORAGGIO
@@ -44,6 +46,7 @@ def main():
         time.sleep(5)  # per debug, poi puoi togliere o abbassare il tempo
         driver.quit()
 
+
 # ==========================
 # Monitoraggio e aggiunta al carrello
 # ==========================
@@ -55,91 +58,34 @@ def monitor_and_add_to_cart(driver):
     """
     product_found = False
     driver.get(PRODUCT_URL)
+    print("Pagina caricata")
     
-    # Gestione cookie iniziale
-    try:
-        cookie_accept_btn = driver.find_element(By.ID, "onetrust-accept-btn-handler")  
-        cookie_accept_btn.click()
-        print("Banner cookie chiuso")
-        time.sleep(1)
-    except:
-        print("Nessun banner cookie trovato")
+    cookie_accept(driver)
+    bypass_cloudflare_captcha(driver)
+    time.sleep(20)
     
     while not product_found:
+        # Ricarica la pagina all'inizio di ogni ciclo
+        driver.refresh()
+        print("Pagina ricaricata")
+                
+        # Verifica se il pulsante di compra è presente
         try:
-            # Ricarica la pagina ad ogni ciclo
-            driver.refresh()
-            print("Pagina ricaricata")
-            time.sleep(2)  # Attesa per caricamento completo
+            add_to_cart_button = WebDriverWait(driver, 1).until(
+                EC.presence_of_element_located((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
+            )
+            add_to_cart_button.click()
             
-            # Gestione cookie se riappaiono dopo refresh
-            try:
-                cookie_accept_btn = driver.find_element(By.ID, "onetrust-accept-btn-handler")  
-                cookie_accept_btn.click()
-                print("Banner cookie chiuso dopo refresh")
-                time.sleep(1)
-            except:
-                pass
+            product_found = True
             
-            # Gestione banner avviso prodotto
-            try:
-                close_button = driver.find_element(By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[5]/div/div[2]/div/div/button')
-                close_button.click()
-                print("Banner avviso chiuso")
-                time.sleep(1)
-            except:
-                pass
-                
-            # Gestione captcha di CloudFlare
-            try:
-                cf_iframe = None
-                elements = driver.find_elements(By.XPATH, "//*[starts-with(@id, 'cf-chl-widget')]")
-                if elements:
-                    cf_iframe = elements[0]
-                print(f"Trovato elemento CloudFlare captcha con ID: {cf_iframe.get_attribute('id')}")
-                
-                # Se abbiamo trovato un elemento di CloudFlare, ci clicchiamo sopra
-                if cf_iframe:
-                    try:
-                        driver.execute_script("arguments[0].click();", cf_iframe)
-                        print("CloudFlare CAPTCHA cliccato via JavaScript")
-                    except Exception as e:
-                        print(f"Errore nel click sul CAPTCHA: {str(e)[:100]}")
-            except Exception as e:
-                print(f"Errore nella gestione CAPTCHA: {str(e)[:100]}")
-                pass
+            proceed_to_cart = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
+            )
+            proceed_to_cart.click()
             
-            # Verifica se il pulsante "AVVISAMI" è presente (prodotto NON disponibile)
-            '''try:
-                notify_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Avvisami')]")
-                if notify_button.is_displayed():
-                    print("Prodotto NON disponibile (pulsante 'Avvisami' trovato), ricontrollo tra poco...")
-                    time.sleep(REFRESH_INTERVAL)
-                    continue
-            except:
-                pass'''
-                
-            # Verifica se il pulsante "COMPRA ONLINE" è presente (prodotto disponibile)
-            try:
-                add_to_cart_button = WebDriverWait(driver, 5).until(
-                    EC.presence_of_element_located((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
-                )
-                add_to_cart_button.click()
-                
-                product_found = True
-                
-                proceed_to_cart = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
-                )
-                proceed_to_cart.click()
-                
-            except Exception as e:
-                print(f"Nessun pulsante 'COMPRA ONLINE' trovato: {str(e)[:100]}...")
-                time.sleep(REFRESH_INTERVAL)
-                
         except Exception as e:
-            print(f"Errore generico: {str(e)[:100]}...")
-            time.sleep(REFRESH_INTERVAL)
+            print(f"Nessun pulsante 'Compra online' trovato: {str(e)[:100]}...")
+        
 
 # ==========================
 # Procedura di checkout
@@ -173,6 +119,7 @@ def proceed_to_checkout(driver):
     
     next_button = driver.find_element(By.XPATH, '//*[@id="step_address_buttons"]/button')
     next_button.click()
+
 
 # ==========================
 # Pagamento e conferma
@@ -235,7 +182,7 @@ def payment_and_confirmation(driver):
             print("Passato al frame del numero carta")
             
             # Attendi che la pagina sia completamente caricata
-            time.sleep(2)
+            # time.sleep(2)
             
             # Prova ad inserire il numero di carta usando JavaScript
             driver.execute_script("""
@@ -268,7 +215,7 @@ def payment_and_confirmation(driver):
             driver.switch_to.frame(exp_iframe)
             print("Passato al frame della data di scadenza")
             
-            time.sleep(2)
+            # time.sleep(2)
             
             # Prova ad inserire la data di scadenza usando JavaScript
             driver.execute_script("""
@@ -301,7 +248,7 @@ def payment_and_confirmation(driver):
             driver.switch_to.frame(cvv_iframe)
             print("Passato al frame del CVV")
             
-            time.sleep(2)
+            # time.sleep(2)
             
             # Prova ad inserire il CVV usando JavaScript
             driver.execute_script("""
@@ -356,6 +303,7 @@ def payment_and_confirmation(driver):
         print("Pagamento completato, ordine confermato.")
     except Exception as e:
         print(f"Attesa conferma ordine non riuscita: {e}")
+
 
 # ==========================
 # Avvio script

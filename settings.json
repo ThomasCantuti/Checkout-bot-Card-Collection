@@ -1,0 +1,24 @@
+{
+    "license_key": "HUNTERS-SBXHEBQ3JFGKA6HX",
+    "show_tasks_status": true,
+    "max_retries": 3,
+    "account_generator": {
+        "concurrent_threads": 10,
+        "phone_opt_wait_timeout": 120,
+        "email_opt_wait_timeout": 120
+    },
+    "captcha_providers": {
+        "2captcha": "",
+        "anticaptcha": "",
+        "capmonster": "",
+        "capsolver": "CAI-559E53F01428EAFB2EE4A7EBA0D1E39B"
+    },
+    "notifications": {
+        "pushover_key": "",
+        "discord_webhooks": {
+            "proxy_file": "",
+            "default_webhook": "https://discord.com/api/webhooks/1342127783450509343/eBVu1kLCASAe7EAZJZiv_uLTxioaTHt7Rll6AVg_K0jyk7MvbceQS7PLzJyEEre7aWIN",
+            "account_generator_webhook": "https://discord.com/api/webhooks/1342128020860702824/StPPZnAPVIaSQPdUECPwE-q7v6erw3IP82WxVY2DukCt3G74rLoFjc3FihW2-X4hvKBB"
+        }
+    }
+}
