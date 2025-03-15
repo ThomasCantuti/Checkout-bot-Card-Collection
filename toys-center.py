@@ -61,8 +61,8 @@ def monitor_and_add_to_cart(driver):
     print("Pagina caricata")
     
     cookie_accept(driver)
-    bypass_cloudflare_captcha(driver)
-    time.sleep(20)
+    bypass_cloudflare_captcha(driver, PRODUCT_URL)
+    time.sleep(5)
     
     while not product_found:
         # Ricarica la pagina all'inizio di ogni ciclo
@@ -78,7 +78,7 @@ def monitor_and_add_to_cart(driver):
             
             product_found = True
             
-            proceed_to_cart = WebDriverWait(driver, 10).until(
+            proceed_to_cart = WebDriverWait(driver, 1).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
             )
             proceed_to_cart.click()
@@ -95,7 +95,7 @@ def proceed_to_checkout(driver):
     Dopo aver aggiunto il prodotto al carrello,
     si naviga alla pagina di checkout e si compilano i form.
     """
-    proceed_to_checkout_button = WebDriverWait(driver, 10).until(
+    proceed_to_checkout_button = WebDriverWait(driver, 11).until(
         EC.element_to_be_clickable((By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[3]/div[3]/a'))
     )
     proceed_to_checkout_button.click()
@@ -132,23 +132,23 @@ def payment_and_confirmation(driver):
     time.sleep(1)
     
     # Seleziona il metodo di pagamento carta di credito
-    cc_radio = WebDriverWait(driver, 10).until(
+    cc_radio = WebDriverWait(driver, 1).until(
         EC.element_to_be_clickable((By.ID, "payment_method_adyen"))
     )
     cc_radio.click()
     print("Metodo di pagamento selezionato")
     
     # Attendi che il form di pagamento sia visibile
-    WebDriverWait(driver, 10).until(
+    WebDriverWait(driver, 1).until(
         EC.visibility_of_element_located((By.ID, "wc_adyen_payment_mount_node"))
     )
     print("Form di pagamento visibile")
-    time.sleep(3)  # Attendi il completo caricamento
+    time.sleep(1)  # Attendi il completo caricamento
     
     # Prima gestisci il nome del titolare (campo non in iframe)
     try:
         # Questo è l'unico campo che non è all'interno di un iframe
-        holder_name = WebDriverWait(driver, 10).until(
+        holder_name = WebDriverWait(driver, 1).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "input[name='holderName']"))
         )
         holder_name.clear()
@@ -158,7 +158,7 @@ def payment_and_confirmation(driver):
         print(f"Errore nell'inserimento del nome del titolare: {e}")
     
     # Ottieni tutti gli iframe
-    time.sleep(2)
+    # time.sleep(2)
     iframes = driver.find_elements(By.TAG_NAME, "iframe")
     print(f"Trovati {len(iframes)} iframe")
     
