@@ -10,8 +10,9 @@ from utils import cookie_accept, bypass_cloudflare_captcha
 # ==========================
 # Configurazione
 # ==========================
-PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
+# PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
 # PRODUCT_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mewtwo/"
+PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-scatola-da-collezione-leggende-cerulee/"
 REFRESH_INTERVAL = 2  # secondi tra un controllo e l'altro
 USER_PATH = "alle.json"
 USER_DATA = json.load(open(USER_PATH))
@@ -71,7 +72,7 @@ def monitor_and_add_to_cart(driver):
                 
         # Verifica se il pulsante di compra è presente
         try:
-            add_to_cart_button = WebDriverWait(driver, 1).until(
+            add_to_cart_button = WebDriverWait(driver, 5).until(
                 EC.presence_of_element_located((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
             )
             add_to_cart_button.click()
@@ -268,7 +269,7 @@ def payment_and_confirmation(driver):
         print(f"Errore nella gestione del CVV: {e}")
         driver.switch_to.default_content()
 
-    input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
+    # input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
     
     # Clicca sul bottone di pagamento
     try:

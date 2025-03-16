@@ -17,47 +17,76 @@ def bypass_cloudflare_captcha(driver, product_url):
     capsolver.api_key = settings["captcha_providers"]["capsolver"]
 
     # Load the inject.js file content
-    with open("inject.js", "r", encoding="utf-8") as f:
-        inject_js_content = f.read()
+    try:
+        with open("inject.js", "r", encoding="utf-8") as f:
+            inject_js_content = f.read()
+    except FileNotFoundError:
+        print("Errore: File inject.js non trovato")
+        return False
+    except Exception as e:
+        print(f"Errore nella lettura del file inject.js: {str(e)}")
+        return False
 
+    try:
+        # Solve the Turnstile CAPTCHA
+        solution = capsolver.solve({
+            "type": "AntiTurnstileTaskProxyLess",  # Required. Use 'AntiTurnstileTask' if using proxies or 'AntiTurnstileTaskProxyLess' if not.
+            "websiteKey": "0x4AAAAAAA_slGZ9sK4UREXX",  # Required. The public key of the domain, often called the 'site key.'
+            "websiteURL": product_url,  # Required. The URL where the CAPTCHA is located.
+        })
+
+        token = solution.get('token')
+        if not token:
+            print("Errore: Token CAPTCHA non ottenuto")
+            return False
+            
+        print("CAPTCHA Solved Token:", token)
+
+        # Inject JavaScript from local file
         try:
-            # Solve the Turnstile CAPTCHA
-            solution = capsolver.solve({
-                "type": "AntiTurnstileTaskProxyLess",  # Required. Use 'AntiTurnstileTask' if using proxies or 'AntiTurnstileTaskProxyLess' if not.
-                "websiteKey": "0x4AAAAAAA_slGZ9sK4UREXX",  # Required. The public key of the domain, often called the 'site key.'
-                "websiteURL": product_url,  # Required. The URL where the CAPTCHA is located.
-            })
-
-            token = solution.get('token')
-            print("CAPTCHA Solved Token:", token)
-
-            # Start Selenium WebDriver
-            # driver = webdriver.Chrome()
-
-            # print(inject_js_content)
-
-            # Inject JavaScript from local file
             driver.execute_cdp_cmd(
                 "Page.addScriptToEvaluateOnNewDocument",
                 {"source": inject_js_content}
             )
+        except Exception as e:
+            print(f"Errore nell'iniezione dello script: {str(e)}")
+            return False
 
-            # Navigate to the target page
+        # Navigate to the target page
+        try:
             driver.get(product_url)
+        except Exception as e:
+            print(f"Errore nel caricamento della pagina {product_url}: {str(e)}")
+            return False
 
-            # Wait for the CAPTCHA response input
+        # Wait for the CAPTCHA response input
+        try:
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "cf-turnstile-response")))
-            
-            # Inject the CAPTCHA token
+        except Exception as e:
+            print(f"Timeout o errore nell'attesa dell'elemento cf-turnstile-response: {str(e)}")
+            return True
+        
+        # Inject the CAPTCHA token
+        try:
             driver.execute_script("""
                 if (window.turnstile && typeof window.tsCallback === "function") {
                     window.tsCallback(arguments[0]);
                 }
             """, token)
+            return True
+        except Exception as e:
+            print(f"Errore nell'iniezione del token CAPTCHA: {str(e)}")
+            return False
 
-        except:
-            print("Errore durante il bypass del captcha")
-            pass
+    except capsolver.error.CapsolverError as e:
+        print(f"Errore Capsolver durante la risoluzione del CAPTCHA: {str(e)}")
+        return False
+    except json.JSONDecodeError as e:
+        print(f"Errore nella decodifica JSON della risposta: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"Errore durante il bypass del captcha: {str(e)}")
+        return False
 
 
 # ==========================
