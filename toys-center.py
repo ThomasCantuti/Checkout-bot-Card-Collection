@@ -26,7 +26,7 @@ def main():
     # Assicurati di aver installato correttamente chromedriver
     options = uc.ChromeOptions()
     driver = uc.Chrome(options=options)
-    driver.implicitly_wait(2)
+    driver.implicitly_wait(7)
 
     try:
         # 1. MONITORAGGIO
@@ -72,14 +72,22 @@ def monitor_and_add_to_cart(driver):
                 
         # Verifica se il pulsante di compra è presente
         try:
+            # Prima cerchiamo con il selettore CSS più preciso
             add_to_cart_button = WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="main"]/div[2]/div[2]/div[2]/div[1]/div[2]/form/div[2]/div/div[3]/button'))
+                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button.cf-turnstile-button:not([data-product_type="pay_and_collect"])'))
             )
-            add_to_cart_button.click()
+            print("Trovato bottone con selettore CSS specifico")
+            
+            try:
+                driver.execute_script("arguments[0].click();", add_to_cart_button)
+                print("Click JavaScript eseguito")
+            except Exception as e:
+                print(f"Click JavaScript fallito: {str(e)[:100]}")
+                continue
             
             product_found = True
             
-            proceed_to_cart = WebDriverWait(driver, 1).until(
+            proceed_to_cart = WebDriverWait(driver, 5).until(
                 EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
             )
             proceed_to_cart.click()

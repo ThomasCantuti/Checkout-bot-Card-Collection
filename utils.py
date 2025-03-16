@@ -11,6 +11,19 @@ import json
 # Bypass Captcha Cloudflare
 # ==========================
 def bypass_cloudflare_captcha(driver, product_url):
+    # Controlla prima se è necessario il bypass
+    try:
+        # Verifica la presenza dell'iframe di Cloudflare
+        page_source = driver.page_source
+        if "cf-turnstile-response" not in page_source:
+            print("Nessun CAPTCHA Cloudflare rilevato, bypass non necessario")
+            return True
+        
+        print("CAPTCHA Cloudflare rilevato, avvio bypass...")
+    except Exception as e:
+        print(f"Errore durante il controllo preliminare: {str(e)}")
+        return False
+
     settings = json.loads(open("settings.json", "r", encoding="utf-8").read())
 
     # Initialize capsolver with your API key
@@ -59,12 +72,12 @@ def bypass_cloudflare_captcha(driver, product_url):
             print(f"Errore nel caricamento della pagina {product_url}: {str(e)}")
             return False
 
-        # Wait for the CAPTCHA response input
+        '''# Wait for the CAPTCHA response input
         try:
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "cf-turnstile-response")))
         except Exception as e:
             print(f"Timeout o errore nell'attesa dell'elemento cf-turnstile-response: {str(e)}")
-            return True
+            return True'''
         
         # Inject the CAPTCHA token
         try:
