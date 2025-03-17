@@ -4,7 +4,8 @@ from selenium.webdriver.support import expected_conditions as EC
 import undetected_chromedriver as uc
 import time
 import json
-from utils import cookie_accept, bypass_cloudflare_captcha
+from utils import cookie_accept
+from captcha import captcha_solver_cloudflare
 
 
 # ==========================
@@ -12,8 +13,9 @@ from utils import cookie_accept, bypass_cloudflare_captcha
 # ==========================
 # PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
 # PRODUCT_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mewtwo/"
-PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-scatola-da-collezione-leggende-cerulee/"
-REFRESH_INTERVAL = 2  # secondi tra un controllo e l'altro
+# PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-scatola-da-collezione-leggende-cerulee/"
+PRODUCT_URL = "https://www.toyscenter.it/prodotto/scatola-da-collezione-impilabile-del-gcc-pokemon/"
+REFRESH_INTERVAL = 5  # secondi tra un controllo e l'altro
 USER_PATH = "alle.json"
 USER_DATA = json.load(open(USER_PATH))
 
@@ -26,7 +28,11 @@ def main():
     # Assicurati di aver installato correttamente chromedriver
     options = uc.ChromeOptions()
     driver = uc.Chrome(options=options)
-    driver.implicitly_wait(7)
+    driver.implicitly_wait(REFRESH_INTERVAL)
+    driver.get(PRODUCT_URL)
+    print("Pagina caricata")
+    # captcha_solver_cloudflare(driver)
+    # time.sleep(5)
 
     try:
         # 1. MONITORAGGIO
@@ -53,48 +59,76 @@ def main():
 # ==========================
 def monitor_and_add_to_cart(driver):
     """
-    Visita la pagina del prodotto e aggiorna periodicamente
-    fino a trovare il bottone di 'COMPRA ONLINE'.
-    Non appena lo trova, clicca e interrompe il loop.
+    Visita la pagina del prodotto e verifica periodicamente
+    la disponibilità senza ricaricare completamente la pagina.
     """
     product_found = False
-    driver.get(PRODUCT_URL)
-    print("Pagina caricata")
-    
     cookie_accept(driver)
-    bypass_cloudflare_captcha(driver, PRODUCT_URL)
+    
+    # Risolvi il captcha una sola volta all'inizio
+    captcha_solver_cloudflare(driver)
     time.sleep(5)
+    print("Captcha risolto inizialmente")
     
     while not product_found:
-        # Ricarica la pagina all'inizio di ogni ciclo
-        driver.refresh()
-        print("Pagina ricaricata")
-                
-        # Verifica se il pulsante di compra è presente
-        try:
-            # Prima cerchiamo con il selettore CSS più preciso
-            add_to_cart_button = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button.cf-turnstile-button:not([data-product_type="pay_and_collect"])'))
-            )
-            print("Trovato bottone con selettore CSS specifico")
-            
-            try:
-                driver.execute_script("arguments[0].click();", add_to_cart_button)
-                print("Click JavaScript eseguito")
-            except Exception as e:
-                print(f"Click JavaScript fallito: {str(e)[:100]}")
-                continue
-            
-            product_found = True
-            
-            proceed_to_cart = WebDriverWait(driver, 5).until(
-                EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
-            )
-            proceed_to_cart.click()
-            
-        except Exception as e:
-            print(f"Nessun pulsante 'Compra online' trovato: {str(e)[:100]}...")
+        # Verifica la disponibilità senza ricaricare la pagina
+        # Questo script controlla il contenuto del pulsante tramite JavaScript
+        button_text = driver.execute_script("""
+            try {
+                // Selettore più specifico che esclude il pulsante "Ritira in Negozio"
+                const button = document.querySelector('button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])');
+                if (button) {
+                    // Cerca il paragrafo con data-add-to-cart-button
+                    const paragraph = button.querySelector('p[data-add-to-cart-button]');
+                    if (paragraph) {
+                        return paragraph.textContent.trim().toLowerCase();
+                    }
+                    // Se non trova il paragrafo specifico, controlla il testo del pulsante
+                    return button.textContent.trim().toLowerCase();
+                }
+                return null;
+            } catch (e) {
+                console.error("Errore durante la ricerca del pulsante:", e);
+                return null;
+            }
+        """)
+
+        print(f"Testo pulsante: {button_text}")
+        time.sleep(REFRESH_INTERVAL)
         
+        if button_text == "compra online":
+            print("Pulsante 'Compra online' trovato")
+            try:
+                # Usa lo stesso selettore usato per trovare il testo del pulsante
+                add_to_cart_button = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])'))
+                )
+                add_to_cart_button.click()
+                print("Pulsante 'Compra online' cliccato")
+                
+                product_found = True
+                
+                proceed_to_cart = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
+                )
+                proceed_to_cart.click()
+            except Exception as e:
+                print(f"Errore nel click: {str(e)[:100]}")
+                # Solo in caso di errore ricarichiamo la pagina
+                driver.refresh()
+        else:
+            # Aggiorna solo parti specifiche della pagina tramite JavaScript
+            driver.execute_script("""
+                try {
+                    // Simulazione di aggiornamento parziale
+                    const productContainer = document.querySelector('.product-container');
+                    if (productContainer) {
+                        productContainer.style.opacity = '0.5';
+                        setTimeout(() => { productContainer.style.opacity = '1'; }, 300);
+                    }
+                } catch (e) {}
+            """)
+
 
 # ==========================
 # Procedura di checkout
@@ -277,29 +311,18 @@ def payment_and_confirmation(driver):
         print(f"Errore nella gestione del CVV: {e}")
         driver.switch_to.default_content()
 
-    # input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
+    input("Premi Invio per continuare con il pagamento o CTRL+C per annullare...")
     
     # Clicca sul bottone di pagamento
     try:
         pay_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, 
-                "button.button.tw-w-full.tw-justify-center"))
+            EC.element_to_be_clickable((By.XPATH, 
+                '//*[@id="place_order"]'))
         )
         pay_button.click()
         print("Pulsante di pagamento cliccato")
     except Exception as e:
         print(f"Errore nel click sul pulsante di pagamento: {e}")
-        
-        # Tentativo alternativo per trovare il pulsante
-        try:
-            buttons = driver.find_elements(By.TAG_NAME, "button")
-            for button in buttons:
-                if "paga" in button.text.lower() or "procedi" in button.text.lower():
-                    button.click()
-                    print(f"Cliccato pulsante con testo: {button.text}")
-                    break
-        except Exception as e2:
-            print(f"Anche il tentativo alternativo è fallito: {e2}")
 
     # Attesa per la conferma dell'ordine
     try:

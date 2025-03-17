@@ -3,8 +3,49 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import requests
 import capsolver
 import json
+
+SETTINGS = json.loads(open("settings.json", "r", encoding="utf-8").read())
+CAPSOLVER_API_KEY = SETTINGS["captcha_providers"]["capsolver"]
+
+# ==========================
+# Bypass Captcha Cloudflare prova 2
+# ==========================
+def solve_cloudflare(product_url, metadata_action = None, metadata_cdata = None):
+    PAGE_URL = product_url
+    WEBSITE_KEY = "0x4AAAAAAA_slGZ9sK4UREXX"
+    url = "https://api.capsolver.com/createTask"
+    task = {
+        "type": "AntiTurnstileTaskProxyLess",
+        "websiteKey": WEBSITE_KEY,
+        "websiteURL": PAGE_URL
+    }
+    if metadata_action or metadata_cdata:
+        task["metadata"] = {}
+        if metadata_action:
+            task["metadata"]["action"] = metadata_action
+        if metadata_cdata:
+            task["metadata"]["cdata"] = metadata_cdata
+    data = {
+        "clientKey": CAPSOLVER_API_KEY,
+        "task": task
+    }
+    response_data = requests.post(url, json=data).json()
+    return response_data['taskId']
+
+def solution_get(task_id):
+    url = "https://api.capsolver.com/getTaskResult"
+    status = ""
+    while status != "ready":
+        data = {"clientKey": CAPSOLVER_API_KEY, "taskId": task_id}
+        response_data = requests.post(url, json=data).json()
+        status = response_data.get("status", "")
+        if status == "ready":
+            return response_data["solution"]
+        time.sleep(5)
+    
 
 
 # ==========================
