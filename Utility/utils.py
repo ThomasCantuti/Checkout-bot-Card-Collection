@@ -1,25 +1,25 @@
-import time
-import json
-import undetected_chromedriver as uc
-from curl_cffi import requests
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from curl_cffi import requests
+import time
+import json
+import os
 
-SETTINGS = json.loads(open("settings.json", "r", encoding="utf-8").read())
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SETTINGS = json.loads(open(os.path.join(project_root, "Data", "settings.json"), "r", encoding="utf-8").read())
 CAPSOLVER_API_KEY = SETTINGS["captcha_providers"]["capsolver"]
-# PAGE_URL = "https://www.toyscenter.it/prodotto/pokemon-scatola-da-collezione-leggende-cerulee/"
-# PAGE_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
-# PAGE_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mewtwo/"
-PAGE_URL = "https://www.toyscenter.it/prodotto/scatola-da-collezione-impilabile-del-gcc-pokemon/"
-WEBSITE_KEY = "0x4AAAAAAA_slGZ9sK4UREXX"
 
-def solvecf(metadata_action=None, metadata_cdata=None):
+
+# ==========================
+# Bypass Captcha Cloudflare
+# ==========================
+def solvecf(website_url, website_key, metadata_action=None, metadata_cdata=None):
     url = "https://api.capsolver.com/createTask"
     task = {
         "type": "AntiTurnstileTaskProxyLess",
-        "websiteURL": PAGE_URL,
-        "websiteKey": WEBSITE_KEY,
+        "websiteURL": website_url,
+        "websiteKey": website_key,
     }
     if metadata_action or metadata_cdata:
         task["metadata"] = {}
@@ -51,10 +51,7 @@ def solutionGet(taskId):
         time.sleep(2)
 
 
-def captcha_solver_cloudflare(driver):
-    '''options = uc.ChromeOptions()
-    driver = uc.Chrome(options=options)
-    driver.get(PAGE_URL)'''
+def captcha_solver_cloudflare(driver, website_url, website_key):
     start_time = time.time()
     
     # Attendi che la pagina carichi completamente e che il captcha appaia
@@ -112,7 +109,7 @@ def captcha_solver_cloudflare(driver):
     print(f"Informazioni captcha: {captcha_info}")
     
     # Ottieni la soluzione dal servizio Capsolver
-    taskId = solvecf()
+    taskId = solvecf(website_url=website_url, website_key=website_key)
     solution = solutionGet(taskId)
     print(f"Solution: {solution}")
     
@@ -156,10 +153,6 @@ def captcha_solver_cloudflare(driver):
     print(f"Tempo impiegato per risolvere il captcha: {elapsed_time} secondi")
     
     click_cloudflare_button(driver)
-    '''time.sleep(5)
-    driver.refresh()
-    time.sleep(20)
-    driver.quit()'''
 
 
 def click_cloudflare_button(driver):
@@ -182,5 +175,14 @@ def click_cloudflare_button(driver):
     except Exception as e:
         print(f"Errore durante il tentativo di cliccare sul captcha: {e}")
 
-if __name__ == "__main__":
-    captcha_solver_cloudflare()
+
+# ==========================
+# Gestione cookie
+# ==========================
+def cookie_accept(driver):
+    try:
+        cookie_accept_btn = driver.find_element(By.ID, "onetrust-accept-btn-handler")  
+        cookie_accept_btn.click()
+        print("Banner cookie chiuso")
+    except:
+        print("Nessun banner cookie trovato")

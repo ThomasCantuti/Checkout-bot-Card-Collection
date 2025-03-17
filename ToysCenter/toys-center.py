@@ -2,21 +2,27 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import undetected_chromedriver as uc
+from dotenv import load_dotenv
 import time
 import json
-from utils import cookie_accept
-from captcha import captcha_solver_cloudflare
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from Utility.utils import cookie_accept, captcha_solver_cloudflare
 
 
 # ==========================
 # Configurazione
 # ==========================
-# PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-collezione-sorpresa-espansione-scarlatto-e-violetto-evoluzioni-prismatiche/"
-# PRODUCT_URL = "https://www.toyscenter.it/prodotto/funko-pop-pokemon-mewtwo/"
-# PRODUCT_URL = "https://www.toyscenter.it/prodotto/pokemon-scatola-da-collezione-leggende-cerulee/"
-PRODUCT_URL = "https://www.toyscenter.it/prodotto/scatola-da-collezione-impilabile-del-gcc-pokemon/"
-REFRESH_INTERVAL = 5  # secondi tra un controllo e l'altro
-USER_PATH = "alle.json"
+load_dotenv()
+
+TOYS_CENTER_URL = os.environ.get('TOYS_CENTER_URL')
+TOYS_CENTER_KEY = os.environ.get('TOYS_CENTER_KEY')
+ROOT_PATH = os.environ.get('ROOT_PATH')
+REFRESH_INTERVAL = 2
+USER_PATH = os.path.join(ROOT_PATH, "Data", "alle.json")
 USER_DATA = json.load(open(USER_PATH))
 
 
@@ -29,10 +35,8 @@ def main():
     options = uc.ChromeOptions()
     driver = uc.Chrome(options=options)
     driver.implicitly_wait(REFRESH_INTERVAL)
-    driver.get(PRODUCT_URL)
+    driver.get(TOYS_CENTER_URL)
     print("Pagina caricata")
-    # captcha_solver_cloudflare(driver)
-    # time.sleep(5)
 
     try:
         # 1. MONITORAGGIO
@@ -65,10 +69,10 @@ def monitor_and_add_to_cart(driver):
     product_found = False
     cookie_accept(driver)
     
-    # Risolvi il captcha una sola volta all'inizio
-    captcha_solver_cloudflare(driver)
+    # Risolvi il captcha iniziale se presente
+    captcha_solver_cloudflare(driver, TOYS_CENTER_URL, TOYS_CENTER_KEY)
     time.sleep(5)
-    print("Captcha risolto inizialmente")
+    print("Captcha iniziale controllato")
     
     while not product_found:
         # Verifica la disponibilità senza ricaricare la pagina
@@ -100,22 +104,67 @@ def monitor_and_add_to_cart(driver):
             print("Pulsante 'Compra online' trovato")
             try:
                 # Usa lo stesso selettore usato per trovare il testo del pulsante
-                add_to_cart_button = WebDriverWait(driver, 5).until(
+                add_to_cart_button = WebDriverWait(driver, 1).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])'))
                 )
                 add_to_cart_button.click()
                 print("Pulsante 'Compra online' cliccato")
                 
+                # Controlla se appare un captcha dopo il click
+                time.sleep(2)  # Breve attesa per l'eventuale apparizione del captcha
+                
+                # Verifica se è apparso un captcha dopo il click
+                turnstile_present = driver.execute_script("""
+                    return document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]').length > 0 ||
+                           document.querySelector('div[class*="turnstile"]') !== null ||
+                           document.querySelector('input[name="cf-turnstile-response"]') !== null;
+                """)
+                
+                if (turnstile_present):
+                    # Chiusura di eventuali popup per rilevamento di cloudflare
+                    close_button = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div[3]/div/div[2]/div[2]/button'))
+                    )
+                    close_button.click()
+                    print("Captcha rilevato dopo aver cliccato 'Compra online'. Risoluzione in corso...")
+                    captcha_solver_cloudflare(driver, TOYS_CENTER_URL, TOYS_CENTER_KEY)
+                    time.sleep(3)
+                    
+                    # Dopo aver risolto il captcha, potrebbe essere necessario cliccare nuovamente
+                    try:
+                        add_to_cart_button = WebDriverWait(driver, 5).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])'))
+                        )
+                        add_to_cart_button.click()
+                        print("Pulsante 'Compra online' cliccato nuovamente dopo risoluzione captcha")
+                    except Exception as e:
+                        print(f"Impossibile cliccare nuovamente dopo captcha: {str(e)[:100]}")
+                
                 product_found = True
                 
-                proceed_to_cart = WebDriverWait(driver, 5).until(
+                # Attendi che appaia il pulsante per procedere al carrello
+                # Aumento del timeout per dare tempo alla pagina di aggiornare dopo il captcha
+                proceed_to_cart = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
                 )
                 proceed_to_cart.click()
             except Exception as e:
-                print(f"Errore nel click: {str(e)[:100]}")
-                # Solo in caso di errore ricarichiamo la pagina
-                driver.refresh()
+                print(f"Errore nel click o nel procedere al carrello: {str(e)[:100]}")
+                
+                # Verifica se è apparso un captcha che potrebbe aver causato l'errore
+                turnstile_present = driver.execute_script("""
+                    return document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]').length > 0 ||
+                           document.querySelector('div[class*="turnstile"]') !== null ||
+                           document.querySelector('input[name="cf-turnstile-response"]') !== null;
+                """)
+                
+                if turnstile_present:
+                    print("Captcha rilevato dopo errore. Risoluzione in corso...")
+                    captcha_solver_cloudflare(driver, TOYS_CENTER_URL, TOYS_CENTER_KEY)
+                    time.sleep(3)
+                else:
+                    # Solo in caso di errore ricarichiamo la pagina
+                    driver.refresh()
         else:
             # Aggiorna solo parti specifiche della pagina tramite JavaScript
             driver.execute_script("""

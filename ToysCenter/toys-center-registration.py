@@ -2,14 +2,25 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.action_chains import ActionChains
-from utils import bypass_cloudflare_captcha, cookie_accept
 import undetected_chromedriver as uc
 import string
 import random
 import time
 import json
 import logging
+import os
+import sys
+from dotenv import load_dotenv
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from Utility.utils import captcha_solver_cloudflare, cookie_accept
+
+load_dotenv()
+
+TC_REGISTRATION_URL = os.environ.get('TC_REGISTRATION_URL')
+TOYS_CENTER_KEY = os.environ.get('TOYS_CENTER_KEY')
+ROOT_PATH = os.environ.get('ROOT_PATH')
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,9 +29,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ToysCenter-Bot")
 
-PRODUCT_URL = "https://www.toyscenter.it/my-account/register"
-USER_PATH = "alle.json"
+USER_PATH = os.path.join(ROOT_PATH, "Data", "alle.json")
 USER_DATA = json.load(open(USER_PATH))
+
 
 # ==========================
 # Funzione principale
@@ -51,13 +62,14 @@ def create_new_account(driver):
     Visita la pagina del profilo
     Completare la registrazione
     """
-    driver.get(PRODUCT_URL)
+    driver.get(TC_REGISTRATION_URL)
     
     # Accettazione cookie
     cookie_accept(driver)
     
     # Captcha
-    bypass_cloudflare_captcha(driver, PRODUCT_URL)
+    captcha_solver_cloudflare(driver, TC_REGISTRATION_URL, TOYS_CENTER_KEY)
+    time.sleep(10)
     
     # Verifica se ci sono altri overlay o elementi da gestire
     try:
@@ -89,6 +101,8 @@ def create_new_account(driver):
     json.dump(USER_DATA, open(USER_PATH, "w"), indent=4)
     driver.find_element(By.XPATH, '//*[@id="password"]').send_keys(USER_DATA["password"])
     driver.find_element(By.XPATH, '//*[@id="password_confirm"]').send_keys(USER_DATA["password"])
+    
+    time.sleep(5)
 
     # Accettazione privacy
     toggle_checkbox = driver.find_element(By.NAME, "gdpr_privacy")
