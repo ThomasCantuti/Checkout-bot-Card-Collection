@@ -16,37 +16,34 @@ USER_PATH = os.path.join(ROOT_PATH, "Data", "alle.json")
 USER_DATA = json.load(open(USER_PATH))
 
 # ==========================
-# Funzione principale
+# Main Function
 # ==========================
 def main():
-    # Inizializza il webdriver (Chrome in questo caso)
-    # Assicurati di aver installato correttamente chromedriver
     options = uc.ChromeOptions()
     driver = uc.Chrome(options=options)
 
     try:
-        # 1. MONITORAGGIO
+        # 1. MONITORING
         print("Starting monitoring...")
         monitor_and_add_to_cart(driver, TOYS_CENTER_URL, TOYS_CENTER_KEY)
         print("End of monitoring")
 
-        # 2. COMPILAZIONE AUTOMATICA & CHECKOUT
+        # 2. AUTOMATIC FORM FILLING & CHECKOUT
         print("Starting automatic compilation...")
         compiling_form(driver, USER_DATA)
         print("End of automatic compilation")
 
-        # 3. PAGAMENTO
+        # 3. PAYMENT
         print("Starting payment...")
         payment_and_confirmation(driver, USER_DATA)
         print("End of payment")
 
         time.sleep(5)
-        print("Procedura completata!")
+        print("Procedure completed!")
 
     except Exception as e:
-        print(f"Si è verificato un errore: {e}")
+        print(f"An error occurred: {e}")
     finally:
-        # Chiude il browser alla fine
         time.sleep(5)
         driver.quit()
 

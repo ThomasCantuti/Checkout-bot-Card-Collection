@@ -20,62 +20,62 @@ REFRESH_INTERVAL = 2
 # ==========================
 def monitor_and_add_to_cart(driver, website_url, website_key):
     """
-    Visita la pagina del prodotto e verifica periodicamente
-    la disponibilità senza ricaricare completamente la pagina.
+    Visits the product page and periodically checks
+    availability without completely reloading the page.
     """
     driver.implicitly_wait(REFRESH_INTERVAL)
     driver.get(website_url)
-    print("Pagina caricata")
+    print("Page loaded")
     time.sleep(1)
     
     product_found = False
     cookie_accept(driver)
     
-    # Risolvi il captcha iniziale se presente
+    # Solve initial captcha if present
     captcha_solver_cloudflare(driver, website_url, website_key)
     time.sleep(5)
-    print("Captcha iniziale controllato")
+    print("Initial captcha checked")
     
     while not product_found:
-        # Verifica la disponibilità senza ricaricare la pagina
-        # Questo script controlla il contenuto del pulsante tramite JavaScript
+        # Check availability without reloading the page
+        # This script checks the button content via JavaScript
         button_text = driver.execute_script("""
             try {
-                // Selettore più specifico che esclude il pulsante "Ritira in Negozio"
+                // More specific selector that excludes the "Pick up in Store" button
                 const button = document.querySelector('button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])');
                 if (button) {
-                    // Cerca il paragrafo con data-add-to-cart-button
+                    // Look for paragraph with data-add-to-cart-button
                     const paragraph = button.querySelector('p[data-add-to-cart-button]');
                     if (paragraph) {
                         return paragraph.textContent.trim().toLowerCase();
                     }
-                    // Se non trova il paragrafo specifico, controlla il testo del pulsante
+                    // If specific paragraph not found, check button text
                     return button.textContent.trim().toLowerCase();
                 }
                 return null;
             } catch (e) {
-                console.error("Errore durante la ricerca del pulsante:", e);
+                console.error("Error while searching for button:", e);
                 return null;
             }
         """)
 
-        print(f"Testo pulsante: {button_text}")
+        print(f"Button text: {button_text}")
         time.sleep(REFRESH_INTERVAL)
         
         if button_text == "compra online":
-            print("Pulsante 'Compra online' trovato")
+            print("'Buy online' button found")
             try:
-                # Usa lo stesso selettore usato per trovare il testo del pulsante
+                # Use the same selector used to find the button text
                 add_to_cart_button = WebDriverWait(driver, 1).until(
                     EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])'))
                 )
                 add_to_cart_button.click()
-                print("Pulsante 'Compra online' cliccato")
+                print("'Buy online' button clicked")
                 
-                # Controlla se appare un captcha dopo il click
-                time.sleep(2)  # Breve attesa per l'eventuale apparizione del captcha
+                # Check if a captcha appears after clicking
+                time.sleep(2)  # Short wait for possible captcha appearance
                 
-                # Verifica se è apparso un captcha dopo il click
+                # Check if a captcha appeared after clicking
                 turnstile_present = driver.execute_script("""
                     return document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]').length > 0 ||
                            document.querySelector('div[class*="turnstile"]') !== null ||
@@ -83,37 +83,37 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                 """)
                 
                 if (turnstile_present):
-                    # Chiusura di eventuali popup per rilevamento di cloudflare
+                    # Close any popup for cloudflare detection
                     close_button = WebDriverWait(driver, 5).until(
                         EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div[3]/div/div[2]/div[2]/button'))
                     )
                     close_button.click()
-                    print("Captcha rilevato dopo aver cliccato 'Compra online'. Risoluzione in corso...")
+                    print("Captcha detected after clicking 'Buy online'. Solving in progress...")
                     captcha_solver_cloudflare(driver, website_url, website_key)
                     time.sleep(3)
                     
-                    # Dopo aver risolto il captcha, potrebbe essere necessario cliccare nuovamente
+                    # After solving the captcha, it might be necessary to click again
                     try:
                         add_to_cart_button = WebDriverWait(driver, 5).until(
                             EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])'))
                         )
                         add_to_cart_button.click()
-                        print("Pulsante 'Compra online' cliccato nuovamente dopo risoluzione captcha")
+                        print("'Buy online' button clicked again after captcha resolution")
                     except Exception as e:
-                        print(f"Impossibile cliccare nuovamente dopo captcha: {str(e)[:100]}")
+                        print(f"Unable to click again after captcha: {str(e)[:100]}")
                 
                 product_found = True
                 
-                # Attendi che appaia il pulsante per procedere al carrello
-                # Aumento del timeout per dare tempo alla pagina di aggiornare dopo il captcha
+                # Wait for the button to proceed to cart to appear
+                # Increased timeout to give the page time to update after captcha
                 proceed_to_cart = WebDriverWait(driver, 10).until(
                     EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
                 )
                 proceed_to_cart.click()
             except Exception as e:
-                print(f"Errore nel click o nel procedere al carrello: {str(e)[:100]}")
+                print(f"Error in clicking or proceeding to cart: {str(e)[:100]}")
                 
-                # Verifica se è apparso un captcha che potrebbe aver causato l'errore
+                # Check if a captcha appeared that might have caused the error
                 turnstile_present = driver.execute_script("""
                     return document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]').length > 0 ||
                            document.querySelector('div[class*="turnstile"]') !== null ||
@@ -121,17 +121,17 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                 """)
                 
                 if turnstile_present:
-                    print("Captcha rilevato dopo errore. Risoluzione in corso...")
+                    print("Captcha detected after error. Solving in progress...")
                     captcha_solver_cloudflare(driver, website_url, website_key)
                     time.sleep(3)
                 else:
-                    # Solo in caso di errore ricarichiamo la pagina
+                    # Only reload the page in case of error
                     driver.refresh()
         else:
-            # Aggiorna solo parti specifiche della pagina tramite JavaScript
+            # Update only specific parts of the page via JavaScript
             driver.execute_script("""
                 try {
-                    // Simulazione di aggiornamento parziale
+                    // Simulation of partial update
                     const productContainer = document.querySelector('.product-container');
                     if (productContainer) {
                         productContainer.style.opacity = '0.5';

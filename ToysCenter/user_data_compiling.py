@@ -9,15 +9,15 @@ import time
 # ==========================
 def compiling_form(driver, user_data):
     """
-    Dopo aver aggiunto il prodotto al carrello,
-    si naviga alla pagina di checkout e si compilano i form.
+    After adding the product to the cart,
+    navigate to the checkout page and fill in the forms.
     """
     proceed_to_checkout_button = WebDriverWait(driver, 11).until(
         EC.element_to_be_clickable((By.XPATH, '//*[@id="content"]/div/div[2]/div[1]/div[2]/div[2]/div[1]/div[1]/div[3]/div[3]/a'))
     )
     proceed_to_checkout_button.click()
     
-    # Compilazione form
+    # Form filling
     time.sleep(1)
     driver.find_element(By.XPATH, '//*[@id="billing.first_name"]').send_keys(user_data["nome"])
     driver.find_element(By.XPATH, '//*[@id="billing.last_name"]').send_keys(user_data["cognome"])
