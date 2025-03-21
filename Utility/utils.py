@@ -7,7 +7,7 @@ import json
 import os
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SETTINGS = json.loads(open(os.path.join(project_root, "Data", "settings.json"), "r", encoding="utf-8").read())
+SETTINGS = json.loads(open(os.path.join(project_root, "settings.json"), "r", encoding="utf-8").read())
 CAPSOLVER_API_KEY = SETTINGS["captcha_providers"]["capsolver"]
 
 
@@ -32,7 +32,7 @@ def solvecf(website_url, website_key, metadata_action=None, metadata_cdata=None)
         "task": task
     }
     response_data = requests.post(url, json=data).json()
-    print(response_data)
+    # print(response_data)
     return response_data['taskId']
 
 
@@ -42,7 +42,7 @@ def solutionGet(taskId):
     while status != "ready":
         data = {"clientKey": CAPSOLVER_API_KEY, "taskId": taskId}
         response_data = requests.post(url, json=data).json()
-        print(response_data)
+        # print(response_data)
         status = response_data.get('status', '')
         print(status)
         if status == "ready":
@@ -52,9 +52,8 @@ def solutionGet(taskId):
 
 
 def captcha_solver_cloudflare(driver, website_url, website_key):
-    start_time = time.time()
-    
-    # Attendi che la pagina carichi completamente e che il captcha appaia
+    click_cloudflare_button(driver)
+    '''# Attendi che la pagina carichi completamente e che il captcha appaia
     try:
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
@@ -77,9 +76,9 @@ def captcha_solver_cloudflare(driver, website_url, website_key):
     else:
         print("Captcha Turnstile trovato nella pagina. Procedi con la risoluzione...")
         click_cloudflare_button(driver)
-        time.sleep(3)
+        time.sleep(3)'''
     
-    # Ottieni le informazioni sul captcha
+    '''# Ottieni le informazioni sul captcha
     captcha_info = driver.execute_script("""
         try {
             // Trova il widget ID del Turnstile
@@ -106,16 +105,16 @@ def captcha_solver_cloudflare(driver, website_url, website_key):
         }
     """)
     
-    print(f"Informazioni captcha: {captcha_info}")
+    print(f"Informazioni captcha: {captcha_info}")'''
     
     # Ottieni la soluzione dal servizio Capsolver
     taskId = solvecf(website_url=website_url, website_key=website_key)
     solution = solutionGet(taskId)
-    print(f"Solution: {solution}")
+    # print(f"Solution: {solution}")
     
     if solution:
         token = solution['token']
-        print("Solved Turnstile Captcha, token:", token)
+        print("Solved Turnstile Captcha")
         
         # Inietta il token direttamente
         script = f"""
@@ -135,7 +134,7 @@ def captcha_solver_cloudflare(driver, website_url, website_key):
         """
         
         success = driver.execute_script(script)
-        print(f"Script success: {success}")
+        print(f"Injection token success: {success}")
         
         # Verifica se il captcha è ancora visibile
         captcha_still_visible = driver.execute_script("""
@@ -147,10 +146,6 @@ def captcha_solver_cloudflare(driver, website_url, website_key):
             print("ATTENZIONE: Il captcha sembra ancora visibile dopo il tentativo di risoluzione.")
         else:
             print("Il captcha non è più visibile, potrebbe essere stato risolto.")
-    
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    print(f"Tempo impiegato per risolvere il captcha: {elapsed_time} secondi")
     
     click_cloudflare_button(driver)
 
@@ -169,11 +164,11 @@ def click_cloudflare_button(driver):
                     element.click()
                     print(f"Cliccato su elemento captcha: {element.get_attribute('class') or element.tag_name}")
                 except Exception as e:
-                    print(f"Non è stato possibile cliccare sull'elemento: {e}")
+                    print(f"Non è stato possibile cliccare sull'elemento captcha")
         else:
             print("Nessun elemento captcha cliccabile trovato")
     except Exception as e:
-        print(f"Errore durante il tentativo di cliccare sul captcha: {e}")
+        print(f"Errore durante il tentativo di cliccare sul captcha")
 
 
 # ==========================

@@ -82,6 +82,7 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                 )
                 add_to_cart_button.click()
                 print("'Buy online' button clicked")
+                product_found = True
                 
                 # Check if a captcha appears after clicking
                 time.sleep(2)  # Short wait for possible captcha appearance
@@ -118,9 +119,7 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                         add_to_cart_button.click()
                         print("'Buy online' button clicked again after captcha resolution")
                     except Exception as e:
-                        print(f"Unable to click again after captcha: {str(e)[:100]}")
-                
-                product_found = True
+                        print(f"Unable to click again after captcha")
                 
                 # Wait for the button to proceed to cart to appear
                 # Increased timeout to give the page time to update after captcha
@@ -129,7 +128,7 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                 )
                 proceed_to_cart.click()
             except Exception as e:
-                print(f"Error in clicking or proceeding to cart: {str(e)[:100]}")
+                print(f"Error in clicking or proceeding to cart")
                 
                 # Check if a captcha appeared that might have caused the error
                 turnstile_present = driver.execute_script("""
@@ -155,7 +154,7 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                 print("Clicked on cart button")
                 break
             except Exception as e:
-                print(f"Error in clicking on cart button: {str(e)[:100]}")
+                print(f"Error in clicking on cart button")
         else:
             # Update only specific parts of the page via JavaScript
             driver.execute_script("""
