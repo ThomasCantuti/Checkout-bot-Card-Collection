@@ -26,13 +26,24 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
     driver.implicitly_wait(REFRESH_INTERVAL)
     driver.get(website_url)
     print("Page loaded")
-    time.sleep(1)
+    time.sleep(2)
     
     product_found = False
     cookie_accept(driver)
     
     # Solve initial captcha if present
-    captcha_solver_cloudflare(driver, website_url, website_key)
+    turnstile_present = driver.execute_script("""
+        return document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]').length > 0 ||
+               document.querySelector('div[class*="turnstile"]') !== null ||
+               document.querySelector('input[name="cf-turnstile-response"]') !== null;
+    """)
+    
+    if not turnstile_present:
+        print("Nessun captcha Turnstile trovato nella pagina. Potrebbe essere già risolto o non presente.")
+    else:
+        print("Captcha Turnstile trovato nella pagina. Procedi con la risoluzione...")
+        captcha_solver_cloudflare(driver, website_url, website_key)
+        
     time.sleep(5)
     print("Initial captcha checked")
     
@@ -85,12 +96,19 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                 if (turnstile_present):
                     # Close any popup for cloudflare detection
                     close_button = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div[3]/div/div[2]/div[2]/button'))
+                        EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div[4]/div/div[2]/div[2]/button'))
                     )
                     close_button.click()
                     print("Captcha detected after clicking 'Buy online'. Solving in progress...")
                     captcha_solver_cloudflare(driver, website_url, website_key)
                     time.sleep(3)
+                    
+                    # Click the button again after captcha resolution
+                    add_to_cart_button = WebDriverWait(driver, 1).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.single_add_to_cart_button:not([data-product_type="pay_and_collect"])'))
+                    )
+                    add_to_cart_button.click()
+                    print("'Buy online' button clicked")
                     
                     # After solving the captcha, it might be necessary to click again
                     try:
@@ -124,9 +142,20 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                     print("Captcha detected after error. Solving in progress...")
                     captcha_solver_cloudflare(driver, website_url, website_key)
                     time.sleep(3)
-                else:
+                '''else:
                     # Only reload the page in case of error
-                    driver.refresh()
+                    driver.refresh()'''
+            
+            # Attende e clicca sul pulsante del carrello
+            try:
+                cart_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[href*="/cart/"][class*="tw-relative"]'))
+                )
+                cart_button.click()
+                print("Clicked on cart button")
+                break
+            except Exception as e:
+                print(f"Error in clicking on cart button: {str(e)[:100]}")
         else:
             # Update only specific parts of the page via JavaScript
             driver.execute_script("""
@@ -139,3 +168,4 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                     }
                 } catch (e) {}
             """)
+        

@@ -129,7 +129,7 @@ def captcha_solver_cloudflare(driver, website_url, website_key):
             }}
             return false;
         }} catch (e) {{
-            console.error("Errore nell'approccio 1:", e);
+            console.error("Errore: ", e);
             return false;
         }}
         """

@@ -151,7 +151,7 @@ def payment_and_confirmation(driver, user_data):
         print(f"Error handling CVV: {e}")
         driver.switch_to.default_content()
 
-    input("Press Enter to continue with payment or CTRL+C to cancel...")
+    # input("Press Enter to continue with payment or CTRL+C to cancel...")
     
     # Click the payment button
     try:
@@ -165,13 +165,31 @@ def payment_and_confirmation(driver, user_data):
         print(f"Error clicking payment button: {e}")
 
     # Wait for order confirmation
-    try:
-        WebDriverWait(driver, 20).until(
-            EC.text_to_be_present_in_element(
-                (By.TAG_NAME, "body"),
-                "Grazie per il tuo ordine"
+    payed = False
+    confirmed = False
+    while not payed:
+        time.sleep(60)
+        try:
+            WebDriverWait(driver, 20).until(
+                EC.text_to_be_present_in_element(
+                    (By.TAG_NAME, "body"),
+                    "Grazie per il tuo ordine"
+                )
             )
-        )
-        print("Payment completed, order confirmed.")
-    except Exception as e:
-        print(f"Waiting for order confirmation failed: {e}")
+            print("Payment completed, order confirmed.")
+            payed = True
+            confirmed = True
+        except Exception as e:
+            print(f"Waiting for order confirmation failed: {e}")
+            driver.refresh()
+        
+        if not confirmed:
+            try:
+                retry_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "//a[contains(text(), 'Ritenta il pagamento')]"))
+                )
+                print("Trovato pulsante 'Ritenta il pagamento', cliccando...")
+                retry_button.click()
+                confirmed = True
+            except Exception as e:
+                print(f"Pulsante 'Ritenta il pagamento' non trovato: {e}")
