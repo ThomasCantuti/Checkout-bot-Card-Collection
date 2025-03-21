@@ -72,45 +72,47 @@ def monitor_and_add_to_cart(driver, website_url, website_key):
                 add_to_cart_button.click()
                 print("'Buy online' button clicked")
                 product_found = True
-                
-                # Close any popup for cloudflare detection
-                time.sleep(2)
-                try:
-                    close_button = WebDriverWait(driver, 5).until(
-                        EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div[4]/div/div[2]/div[2]/button'))
-                    )
-                    close_button.click()
-                    print("Captcha detected after clicking 'Buy online'. Solving in progress...")
-                except:
-                    print("No popup detected after captcha resolution")
-                
-                # Check if a captcha appeared after clicking
-                solve_captcha(driver, website_url, website_key)
-                
-                # Proceed to cart
-                if count_product_cart(driver) > 0:
-                    print("Product added to cart")
-                    try:
-                        proceed_to_cart_button = WebDriverWait(driver, 5).until(
-                            EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
-                        )
-                        proceed_to_cart_button.click()
-                        print("Proceed to cart clicked")
-                    except:
-                        print("Proceed to cart button from popup not found")
-                        try:
-                            cart_button = WebDriverWait(driver, 10).until(
-                                EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[href*="/cart/"][class*="tw-relative"]'))
-                            )
-                            cart_button.click()
-                            print("Carrello cliccato")
-                        except:
-                            print("Cart button not found")
-                else:
-                    print("Product not added to cart")
             except Exception as e:
                 print(f"Error in clicking or proceeding to cart")
                 solve_captcha(driver, website_url, website_key)
+                
+            # Close any popup for cloudflare detection
+            time.sleep(2)
+            try:
+                close_button = WebDriverWait(driver, 5).until(
+                    EC.element_to_be_clickable((By.XPATH, '/html/body/div[2]/div[4]/div/div[2]/div[2]/button'))
+                )
+                close_button.click()
+            except:
+                print("No popup detected after captcha resolution")
+            
+            # Check if a captcha appeared after clicking
+            solve_captcha(driver, website_url, website_key)
+            
+            product_count = count_product_cart(driver)
+            print(f"Product count in cart: {product_count}")
+            
+            # Proceed to cart
+            if product_count > 0:
+                print("Product added to cart")
+                try:
+                    proceed_to_cart_button = WebDriverWait(driver, 5).until(
+                        EC.element_to_be_clickable((By.XPATH, '//*[@id="page"]/div[4]/footer/div[8]/div/div/div[2]/div/div[2]/div[3]/a'))
+                    )
+                    proceed_to_cart_button.click()
+                    print("Proceed to cart clicked")
+                except:
+                    print("Proceed to cart button from popup not found")
+                    try:
+                        cart_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[href*="/cart/"][class*="tw-relative"]'))
+                        )
+                        cart_button.click()
+                        print("Carrello cliccato")
+                    except:
+                        print("Cart button not found")
+            else:
+                print("Product not added to cart")
         else:
             # Update only specific parts of the page via JavaScript
             driver.execute_script("""
@@ -140,24 +142,24 @@ def solve_captcha(driver, website_url, website_key):
 def count_product_cart(driver):
     # Ottiene il numero di oggetti nel carrello
     return driver.execute_script("""
-        try {
+        try {{
             // Trova l'elemento che mostra il conteggio
             const countElement = document.querySelector('.tw-bg-primary-dark.tw-text-white span[x-html]');
-            if (countElement) {
+            if (countElement) {{
                 // Estrae e restituisce il numero come intero
                 return parseInt(countElement.textContent.trim());
-            }
+            }}
             
             // Approccio alternativo se il selettore precedente non funziona
-            const cartBadge = document.querySelector('span[x-html="get(\'items_count\', 0)"]');
-            if (cartBadge) {
+            const cartBadge = document.querySelector("span[x-html^=\\"get\\"]");
+            if (cartBadge) {{
                 return parseInt(cartBadge.textContent.trim());
-            }
+            }}
             
             return 0; // Se non è possibile trovare l'elemento, assume 0
-        } catch (e) {
+        }} catch (e) {{
             console.error("Errore nell'ottenere il conteggio del carrello:", e);
             return 0;
-        }
+        }}
     """)
         
