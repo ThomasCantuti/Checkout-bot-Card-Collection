@@ -1,6 +1,4 @@
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from curl_cffi import requests
 import time
 import json
@@ -53,59 +51,6 @@ def solutionGet(taskId):
 
 def captcha_solver_cloudflare(driver, website_url, website_key):
     click_cloudflare_button(driver)
-    '''# Attendi che la pagina carichi completamente e che il captcha appaia
-    try:
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
-        # Attendi un po' più a lungo per assicurarti che tutti gli script siano caricati
-        time.sleep(5)
-    except Exception as e:
-        print(f"Errore durante l'attesa della pagina: {e}")
-    
-    # Verifica se è presente un captcha Turnstile
-    turnstile_present = driver.execute_script("""
-        return document.querySelectorAll('iframe[src*="challenges.cloudflare.com"]').length > 0 ||
-               document.querySelector('div[class*="turnstile"]') !== null ||
-               document.querySelector('input[name="cf-turnstile-response"]') !== null;
-    """)
-    
-    if not turnstile_present:
-        print("Nessun captcha Turnstile trovato nella pagina. Potrebbe essere già risolto o non presente.")
-        return
-    else:
-        print("Captcha Turnstile trovato nella pagina. Procedi con la risoluzione...")
-        click_cloudflare_button(driver)
-        time.sleep(3)'''
-    
-    '''# Ottieni le informazioni sul captcha
-    captcha_info = driver.execute_script("""
-        try {
-            // Trova il widget ID del Turnstile
-            let widgetId = null;
-            for (const key in window) {
-                if (key.startsWith('turnstile') && typeof window[key] === 'object') {
-                    widgetId = key;
-                    break;
-                }
-            }
-            
-            // Trova l'elemento del captcha
-            const turnstileIframe = document.querySelector('iframe[src*="challenges.cloudflare.com"]');
-            const turnstileDiv = document.querySelector('div[class*="turnstile"]');
-            
-            return {
-                widgetId: widgetId,
-                iframePresent: turnstileIframe !== null,
-                divPresent: turnstileDiv !== null,
-                sitekey: turnstileDiv ? turnstileDiv.getAttribute('data-sitekey') : null
-            };
-        } catch (e) {
-            return { error: e.toString() };
-        }
-    """)
-    
-    print(f"Informazioni captcha: {captcha_info}")'''
     
     # Ottieni la soluzione dal servizio Capsolver
     taskId = solvecf(website_url=website_url, website_key=website_key)
