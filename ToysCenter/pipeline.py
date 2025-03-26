@@ -2,32 +2,30 @@ import undetected_chromedriver as uc
 import time
 from dotenv import load_dotenv
 import os
-import json
 import csv
 import subprocess
 import sys
 import traceback
 import threading
-from monitor_notify1 import monitor_and_add_to_cart
+from monitoring import monitor_and_add_to_cart
 from user_data_compiling import compiling_form
 from payment import payment_and_confirmation
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Carica tutte le righe del CSV in una lista
-with open(os.path.join(project_root, "tasks", "toyscenter1.csv"), "r", encoding="utf-8") as csv_file:
+with open(os.path.join(project_root, "tasks", "toyscenter.csv"), "r", encoding="utf-8") as csv_file:
     USER_DATA_ROWS = list(csv.DictReader(csv_file))
 
 load_dotenv()
 REFRESH_INTERVAL = 2
 TOYS_CENTER_KEY = os.environ.get('TOYS_CENTER_KEY')
-payment_user_data = json.loads(open(os.path.join(project_root, "alle.json"), "r", encoding="utf-8").read())
 
 # Variabile per controllare il loop continuo
 KEEP_RUNNING = True
 # Tempo di attesa tra i tentativi di riavvio in caso di errore (in secondi)
 RESTART_DELAY = 10
 # Numero massimo di thread da eseguire contemporaneamente
-MAX_THREADS = 3
+MAX_THREADS = 10
 # Lock per la sincronizzazione degli output su console
 console_lock = threading.Lock()
 
@@ -95,7 +93,7 @@ def run_bot(user_data_row, thread_id):
         # 3. PAYMENT
         with console_lock:
             print(f"[Thread {thread_id}] Starting payment...")
-        payment_and_confirmation(driver, payment_user_data)
+        payment_and_confirmation(driver, user_data_row)
         with console_lock:
             print(f"[Thread {thread_id}] End of payment")
 
