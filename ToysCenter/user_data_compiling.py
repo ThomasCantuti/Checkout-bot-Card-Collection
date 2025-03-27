@@ -4,6 +4,12 @@ from selenium.webdriver.support import expected_conditions as EC
 import time
 import random
 import string
+import os
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from Utility.utils import cookie_accept
 
 
 # ==========================
@@ -21,6 +27,7 @@ def compiling_form(driver, user_data):
     
     # Form filling
     time.sleep(1)
+    cookie_accept(driver)
     driver.find_element(By.XPATH, '//*[@id="billing.first_name"]').send_keys(random_string())
     driver.find_element(By.XPATH, '//*[@id="billing.last_name"]').send_keys(user_data["surname"])
     driver.find_element(By.XPATH, '//*[@id="billing.address_1"]').send_keys(random_string() + " " + user_data["address_line_1"][:-2])

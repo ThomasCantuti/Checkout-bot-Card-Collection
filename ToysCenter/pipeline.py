@@ -12,7 +12,7 @@ from user_data_compiling import compiling_form
 from payment import payment_and_confirmation
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# Carica tutte le righe del CSV in una lista
+# Load all CSV rows into a list
 with open(os.path.join(project_root, "tasks", "toyscenter.csv"), "r", encoding="utf-8") as csv_file:
     USER_DATA_ROWS = list(csv.DictReader(csv_file))
 
@@ -20,13 +20,13 @@ load_dotenv()
 REFRESH_INTERVAL = 2
 TOYS_CENTER_KEY = os.environ.get('TOYS_CENTER_KEY')
 
-# Variabile per controllare il loop continuo
+# Variable to control the continuous loop
 KEEP_RUNNING = True
-# Tempo di attesa tra i tentativi di riavvio in caso di errore (in secondi)
+# Wait time between restart attempts in case of error (in seconds)
 RESTART_DELAY = 10
-# Numero massimo di thread da eseguire contemporaneamente
+# Maximum number of threads to run simultaneously
 MAX_THREADS = 10
-# Lock per la sincronizzazione degli output su console
+# Lock for console output synchronization
 console_lock = threading.Lock()
 
 def prevent_sleep():
@@ -65,7 +65,7 @@ def prevent_sleep():
 # Main Function
 # ==========================
 def run_bot(user_data_row, thread_id):
-    """Esegue un'istanza del bot con una specifica riga di dati utente"""
+    """Runs a bot instance with specific user data row"""
     options = uc.ChromeOptions()
     # options.add_argument("--headless")
     driver = None
@@ -77,7 +77,7 @@ def run_bot(user_data_row, thread_id):
         with console_lock:
             print(f"[Thread {thread_id}] Starting monitoring... URL: {user_data_row['product_link']}")
         
-        # Usa il link specifico dal CSV per questo thread
+        # Use the specific link from CSV for this thread
         monitor_and_add_to_cart(driver, user_data_row['product_link'], TOYS_CENTER_KEY)
         
         with console_lock:
@@ -101,7 +101,7 @@ def run_bot(user_data_row, thread_id):
         with console_lock:
             print(f"[Thread {thread_id}] Procedure completed!")
         
-        # Se arriviamo qui, l'esecuzione è terminata con successo
+        # If we get here, execution completed successfully
         return True
 
     except Exception as e:
@@ -116,41 +116,41 @@ def run_bot(user_data_row, thread_id):
             driver.quit()
 
 def bot_thread_function(user_data_row, thread_id):
-    """Funzione che gestisce un singolo thread del bot"""
+    """Function that manages a single bot thread"""
     try:
         while KEEP_RUNNING:
             with console_lock:
-                print(f"[Thread {thread_id}] Avvio del bot: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"[Thread {thread_id}] Bot starting: {time.strftime('%Y-%m-%d %H:%M:%S')}")
             success = run_bot(user_data_row, thread_id)
             
             if success:
                 with console_lock:
-                    print(f"[Thread {thread_id}] Il bot ha completato con successo l'acquisto!")
-                # Possiamo terminare il thread dopo un acquisto riuscito
+                    print(f"[Thread {thread_id}] The bot has successfully completed the purchase!")
+                # We can terminate the thread after a successful purchase
                 break
             
             with console_lock:
-                print(f"[Thread {thread_id}] Riavvio del bot tra {RESTART_DELAY} secondi...")
+                print(f"[Thread {thread_id}] Restarting bot in {RESTART_DELAY} seconds...")
             time.sleep(RESTART_DELAY)
     
     except Exception as e:
         with console_lock:
-            print(f"[Thread {thread_id}] Errore nel thread: {e}")
+            print(f"[Thread {thread_id}] Error in thread: {e}")
             traceback.print_exc()
 
 def main():
-    # Avvia il processo per impedire la sospensione
+    # Start the process to prevent system sleep
     caffeinate_process = prevent_sleep()
     threads = []
     
     try:
-        # Crea un thread per ogni riga di dati utente
+        # Create a thread for each user data row
         for i, user_data_row in enumerate(USER_DATA_ROWS):
-            # Limita il numero di thread attivi
+            # Limit the number of active threads
             while len([t for t in threads if t.is_alive()]) >= MAX_THREADS:
-                time.sleep(1)  # Aspetta che un thread termini
+                time.sleep(1)  # Wait for a thread to terminate
             
-            # Crea e avvia un nuovo thread
+            # Create and start a new thread
             thread = threading.Thread(
                 target=bot_thread_function,
                 args=(user_data_row, i+1),
@@ -159,30 +159,30 @@ def main():
             threads.append(thread)
             thread.start()
             
-            print(f"Avviato thread {i+1} per prodotto: {user_data_row['product_link']}")
+            print(f"Started thread {i+1} for product: {user_data_row['product_link']}")
             
-            # Piccola pausa tra l'avvio di thread consecutivi
+            # Small pause between starting consecutive threads
             time.sleep(2)
         
-        # Attendi che tutti i thread terminino
+        # Wait for all threads to terminate
         for thread in threads:
             thread.join()
             
     except KeyboardInterrupt:
-        print("\nInterruzione manuale del programma")
-        # Imposta la variabile globale per terminare i cicli while nei thread
+        print("\nManual program interruption")
+        # Set the global variable to end while loops in threads
         global KEEP_RUNNING
         KEEP_RUNNING = False
         
-        # Attendi che tutti i thread terminino
-        print("In attesa che tutti i thread terminino...")
+        # Wait for all threads to terminate
+        print("Waiting for all threads to terminate...")
         for thread in threads:
             thread.join()
     finally:
-        # Termina il processo caffeinate quando il programma termina
+        # Terminate the caffeinate process when the program ends
         if caffeinate_process:
             caffeinate_process.terminate()
-            print("Processo anti-sospensione terminato")
+            print("Anti-suspension process terminated")
 
 
 if __name__ == "__main__":
